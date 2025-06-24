@@ -28,6 +28,7 @@
 
 # YANEURAOU_ENGINE_DEEP_TENSOR_RT_UBUNTU : ふかうら王(dlshogi互換エンジン) , TensorRT使用 , Ubuntu用build。
 #                                  ビルドを確認したDocker image → nvcr.io/nvidia/tensorrt:22.12-py3
+# YANEURAOU_ENGINE_DEEP_BERT      : ふかうら王(dlshogi互換エンジン) , BERT型評価関数使用
 
 
 YANEURAOU_EDITION = YANEURAOU_ENGINE_NNUE
@@ -41,6 +42,7 @@ YANEURAOU_EDITION = YANEURAOU_ENGINE_NNUE
 #YANEURAOU_EDITION = YANEURAOU_ENGINE_KPP_KKPT
 #YANEURAOU_EDITION = YANEURAOU_ENGINE_MATERIAL
 #YANEURAOU_EDITION = YANEURAOU_ENGINE_DEEP_TENSOR_RT_UBUNTU
+#YANEURAOU_EDITION = YANEURAOU_ENGINE_DEEP_BERT
 #YANEURAOU_EDITION = TANUKI_MATE_ENGINE
 #YANEURAOU_EDITION = YANEURAOU_MATE_ENGINE
 #YANEURAOU_EDITION = USER_ENGINE
@@ -441,13 +443,16 @@ ifneq (,$(findstring YANEURAOU_ENGINE_DEEP,$(YANEURAOU_EDITION)))
 			LDFLAGS += -framework Foundation -framework CoreML
 			OBJC_SOURCES += eval/deep/nn_coreml.mm
 
+		else ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_DEEP_BERT)
+			CPPFLAGS += -DYANEURAOU_ENGINE_DEEP_BERT -DONNXRUNTIME -DORT_NO_EXCEPTIONS -DORT_CPU
+			LDFLAGS += -lonnxruntime
+
 		endif
 
 	endif
 
 	# 大して大きなファイルではないので全部追加する。
 	SOURCES += \
-		eval/deep/nn_types.cpp                                          \
 		eval/deep/nn.cpp                                                \
 		eval/deep/nn_onnx_runtime.cpp                                   \
 		eval/deep/nn_tensorrt.cpp                                       \
@@ -457,6 +462,13 @@ ifneq (,$(findstring YANEURAOU_ENGINE_DEEP,$(YANEURAOU_EDITION)))
 		engine/dlshogi-engine/Node.cpp                                  \
 		engine/dlshogi-engine/PvMateSearch.cpp                          \
 		engine/dlshogi-engine/FukauraOuEngine.cpp
+
+	# nn_types.cpp or nn_bert_types.cpp を条件によって追加
+	ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_DEEP_BERT)
+		SOURCES += eval/deep/nn_bert_types.cpp
+	else
+		SOURCES += eval/deep/nn_types.cpp
+	endif
 endif
 
 ifneq (,$(findstring YANEURAOU_ENGINE_NNUE,$(YANEURAOU_EDITION)))

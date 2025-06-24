@@ -4,7 +4,11 @@
 
 #if defined(YANEURAOU_ENGINE_DEEP)
 
+#if defined(YANEURAOU_ENGINE_DEEP_BERT)
+#include "nn_bert_types.h"
+#else
 #include "nn_types.h"
+#endif
 
 namespace YaneuraOu {
 namespace Eval::dlshogi {

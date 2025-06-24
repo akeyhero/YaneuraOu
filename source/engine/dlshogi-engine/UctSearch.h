@@ -11,7 +11,11 @@
 
 // この探索部は、NN専用なので直接読み込む。
 
+#if defined(YANEURAOU_ENGINE_DEEP_BERT)
+#include "../../eval/deep/nn_bert_types.h"
+#else
 #include "../../eval/deep/nn_types.h"
+#endif
 #include "../../eval/deep/nn.h"
 
 namespace YaneuraOu {
