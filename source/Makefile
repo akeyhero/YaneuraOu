@@ -444,8 +444,9 @@ ifneq (,$(findstring YANEURAOU_ENGINE_DEEP,$(YANEURAOU_EDITION)))
 			OBJC_SOURCES += eval/deep/nn_coreml.mm
 
 		else ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_DEEP_BERT)
-			CPPFLAGS += -DYANEURAOU_ENGINE_DEEP_BERT -DONNXRUNTIME -DORT_NO_EXCEPTIONS -DORT_CPU
-			LDFLAGS += -lonnxruntime
+			CPPFLAGS += -DYANEURAOU_ENGINE_DEEP_BERT -DCOREML
+			LDFLAGS += -framework Foundation -framework CoreML
+			OBJC_SOURCES += eval/deep/nn_coreml.mm
 
 		endif
 
