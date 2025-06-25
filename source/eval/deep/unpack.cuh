@@ -3,7 +3,11 @@
 #include "../../config.h"
 #include <cuda_runtime.h>
 #include <cuda_fp16.h>
+#if defined(YANEURAOU_ENGINE_DEEP_BERT)
+#include "nn_bert_types.h"
+#else
 #include "nn_types.h"
+#endif
 
 namespace YaneuraOu {
 

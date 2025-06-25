@@ -55,8 +55,8 @@ namespace Eval::dlshogi
 				base_id = BERT_BLACK_PIECE_BASE + (pt - PAWN);
 			} else {
 				// 成駒: 9-14
-				// PROM_PAWN(9) → 9, PROM_LANCE(10) → 10, ..., DRAGON(14) → 14
-				base_id = BERT_BLACK_PROMOTED_BASE + (pt - PROM_PAWN);
+				// PRO_PAWN(9) → 9, PRO_LANCE(10) → 10, ..., DRAGON(14) → 14
+				base_id = BERT_BLACK_PROMOTED_BASE + (pt - PRO_PAWN);
 			}
 		} else {
 			// 相手側の駒
@@ -65,7 +65,7 @@ namespace Eval::dlshogi
 				base_id = BERT_WHITE_PIECE_BASE + (pt - PAWN);
 			} else {
 				// 成駒: 25-30
-				base_id = BERT_WHITE_PROMOTED_BASE + (pt - PROM_PAWN);
+				base_id = BERT_WHITE_PROMOTED_BASE + (pt - PRO_PAWN);
 			}
 		}
 
@@ -111,7 +111,7 @@ namespace Eval::dlshogi
 	{
 		// バッチ内の開始位置を計算
 		int idx1 = batch_index * SQ_NB;                 // 盤面用（81要素）
-		int idx2 = batch_index * BERT_HAND_LENGTH;      // 持ち駒用（14要素）
+		int idx2 = batch_index * BERT_HAND_TOKEN_NUM;   // 持ち駒用（14要素）
 
 		Color stm = position.side_to_move();
 
@@ -158,8 +158,8 @@ namespace Eval::dlshogi
 			}
 
 			// 持ち駒14トークン
-			for (int i = 0; i < BERT_HAND_LENGTH; ++i) {
-				features2[b][i] = to_dtype(static_cast<float>(packed_features2[b * BERT_HAND_LENGTH + i]));
+			for (int i = 0; i < BERT_HAND_TOKEN_NUM; ++i) {
+				features2[b][i] = to_dtype(static_cast<float>(packed_features2[b * BERT_HAND_TOKEN_NUM + i]));
 			}
 		}
 	}
@@ -296,5 +296,35 @@ namespace Eval::dlshogi
 	}
 
 } // namespace Eval::dlshogi
+
+namespace Eval
+{
+	// 評価関数の初期化
+	void init()
+	{
+		dlshogi::init_move_label();
+	}
+
+	// 評価関数ファイルの読み込み
+	void load_eval()
+	{
+		// BERT版ではモデルのパスはエンジンオプションで設定されているため、
+		// ここでは特に何もしない
+	}
+
+	// 局面の評価値を計算
+	Value compute_eval(const Position& pos)
+	{
+		// BERT版では直接評価値を計算しない（MCTSで評価）
+		return VALUE_ZERO;
+	}
+
+	// 評価関数の統計情報を表示
+	void print_eval_stat(Position& pos)
+	{
+		// BERT版では特に表示する統計情報はない
+		sync_cout << "info string BERT evaluation function" << sync_endl;
+	}
+}
 
 #endif // defined(EVAL_DEEP) && defined(YANEURAOU_ENGINE_DEEP_BERT)

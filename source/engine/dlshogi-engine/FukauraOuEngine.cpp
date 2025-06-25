@@ -14,7 +14,11 @@
 //#include "dlshogi_searcher.h"
 //#include "dlshogi_min.h"
 
+#if defined(YANEURAOU_ENGINE_DEEP_BERT)
+#include "../../eval/deep/nn_bert_types.h"
+#else
 #include "../../eval/deep/nn_types.h"
+#endif
 
 using namespace YaneuraOu;
 

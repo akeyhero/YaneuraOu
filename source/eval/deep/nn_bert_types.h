@@ -58,6 +58,12 @@ namespace Eval::dlshogi
 	// 先後含めた手駒の枚数の合計
 	constexpr u32 MAX_FEATURES2_HAND_NUM = (int)COLOR_NB * MAX_PIECES_IN_HAND_SUM;
 
+	// BERT版では使用しないが、既存コードとの互換性のために定義
+	// 盤上の駒に関する入力特徴量のチャンネルの数（CNNで使用）
+	constexpr u32 MAX_FEATURES1_NUM = 31;  // ダミー値
+	// 手駒に関する入力特徴量のチャンネルの数
+	constexpr u32 MAX_FEATURES2_NUM = MAX_FEATURES2_HAND_NUM + 1;
+
 	// 駒の種類(成り駒含む。先後の区別はない) : 空の駒は含まないので14種類。
 	const int PIECETYPE_NUM = 14;
 
@@ -70,9 +76,9 @@ namespace Eval::dlshogi
 	// === BERT特有の定数定義 ===
 
 	// BERTトークン数
-	constexpr int BERT_BOARD_LENGTH = SQ_NB;                    // 盤面: 81トークン
-	constexpr int BERT_HAND_LENGTH = HandPieceNum * COLOR_NB;   // 持ち駒: 14トークン（手番側7種 + 相手側7種）
-	constexpr int BERT_TOTAL_LENGTH = BERT_BOARD_LENGTH + BERT_HAND_LENGTH;  // 合計: 95トークン
+	constexpr int BERT_BOARD_TOKEN_NUM = SQ_NB;                        // 盤面: 81トークン
+	constexpr int BERT_HAND_TOKEN_NUM = HandPieceNum * (int)COLOR_NB;  // 持ち駒: 14トークン（手番側7種 + 相手側7種）
+	constexpr int BERT_TOTAL_TOKEN_NUM = BERT_BOARD_TOKEN_NUM + BERT_HAND_TOKEN_NUM;  // 合計: 95トークン
 
 	// BERTトークンIDの範囲
 	constexpr int BERT_VOCAB_SIZE = 121;  // 0-120のトークンID
@@ -159,7 +165,7 @@ namespace Eval::dlshogi
 	typedef DType NN_Input1[SQ_NB];
 
 	// NNの入力特徴量その2: 持ち駒トークン列（14要素）
-	typedef DType NN_Input2[BERT_HAND_LENGTH];
+	typedef DType NN_Input2[BERT_HAND_TOKEN_NUM];
 
 	// NNの出力特徴量その1 (ValueNetwork) : 期待勝率
 	typedef DType NN_Output_Value;
