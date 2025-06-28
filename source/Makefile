@@ -28,7 +28,15 @@
 
 # YANEURAOU_ENGINE_DEEP_TENSOR_RT_UBUNTU : ふかうら王(dlshogi互換エンジン) , TensorRT使用 , Ubuntu用build。
 #                                  ビルドを確認したDocker image → nvcr.io/nvidia/tensorrt:22.12-py3
-# YANEURAOU_ENGINE_DEEP_BERT      : ふかうら王(dlshogi互換エンジン) , BERT型評価関数使用
+# YANEURAOU_ENGINE_DEEP_ORT_CPU     : ふかうら王(dlshogi互換エンジン) , ONNX Runtime CPU
+# YANEURAOU_ENGINE_DEEP_ORT_DML     : ふかうら王(dlshogi互換エンジン) , ONNX Runtime DirectML (Windows)
+# YANEURAOU_ENGINE_DEEP_ORT_TRT     : ふかうら王(dlshogi互換エンジン) , ONNX Runtime TensorRT
+# YANEURAOU_ENGINE_DEEP_COREML      : ふかうら王(dlshogi互換エンジン) , CoreML (macOS)
+# YANEURAOU_ENGINE_DEEP_BERT_COREML      : ふかうら王(dlshogi互換エンジン) , BERT型評価関数使用 , CoreML
+# YANEURAOU_ENGINE_DEEP_BERT_ORT_CPU     : ふかうら王(dlshogi互換エンジン) , BERT型評価関数使用 , ONNX Runtime CPU
+# YANEURAOU_ENGINE_DEEP_BERT_ORT_DML     : ふかうら王(dlshogi互換エンジン) , BERT型評価関数使用 , ONNX Runtime DirectML (Windows)
+# YANEURAOU_ENGINE_DEEP_BERT_ORT_TRT     : ふかうら王(dlshogi互換エンジン) , BERT型評価関数使用 , ONNX Runtime TensorRT
+# YANEURAOU_ENGINE_DEEP_BERT_TENSOR_RT_UBUNTU   : ふかうら王(dlshogi互換エンジン) , BERT型評価関数使用 , TensorRT
 
 
 YANEURAOU_EDITION = YANEURAOU_ENGINE_NNUE
@@ -42,7 +50,15 @@ YANEURAOU_EDITION = YANEURAOU_ENGINE_NNUE
 #YANEURAOU_EDITION = YANEURAOU_ENGINE_KPP_KKPT
 #YANEURAOU_EDITION = YANEURAOU_ENGINE_MATERIAL
 #YANEURAOU_EDITION = YANEURAOU_ENGINE_DEEP_TENSOR_RT_UBUNTU
-#YANEURAOU_EDITION = YANEURAOU_ENGINE_DEEP_BERT
+#YANEURAOU_EDITION = YANEURAOU_ENGINE_DEEP_ORT_CPU
+#YANEURAOU_EDITION = YANEURAOU_ENGINE_DEEP_ORT_DML
+#YANEURAOU_EDITION = YANEURAOU_ENGINE_DEEP_ORT_TRT
+#YANEURAOU_EDITION = YANEURAOU_ENGINE_DEEP_COREML
+#YANEURAOU_EDITION = YANEURAOU_ENGINE_DEEP_BERT_TENSOR_RT_UBUNTU
+#YANEURAOU_EDITION = YANEURAOU_ENGINE_DEEP_BERT_ORT_CPU
+#YANEURAOU_EDITION = YANEURAOU_ENGINE_DEEP_BERT_ORT_DML
+#YANEURAOU_EDITION = YANEURAOU_ENGINE_DEEP_BERT_ORT_TRT
+#YANEURAOU_EDITION = YANEURAOU_ENGINE_DEEP_BERT_COREML
 #YANEURAOU_EDITION = TANUKI_MATE_ENGINE
 #YANEURAOU_EDITION = YANEURAOU_MATE_ENGINE
 #YANEURAOU_EDITION = USER_ENGINE
@@ -412,41 +428,78 @@ ifneq (,$(findstring YANEURAOU_ENGINE_DEEP,$(YANEURAOU_EDITION)))
 		# とりあえず"YANEURAOU_ENGINE_DEEP"というシンボルを定義してやる。
 		CPPFLAGS += -DYANEURAOU_ENGINE_DEEP
 
-		ifneq (,$(findstring TENSOR_RT,$(YANEURAOU_EDITION)))
-			CPPFLAGS      += -DTENSOR_RT
-			NVCC_CPPFLAGS += -DTENSOR_RT
-			LDFLAGS       += -lnvinfer -lnvonnxparser -lcudart
+		# BERT版
+		ifneq (,$(findstring YANEURAOU_ENGINE_DEEP_BERT,$(YANEURAOU_EDITION)))
+			# BERT版共通の定義
+			CPPFLAGS += -DYANEURAOU_ENGINE_DEEP_BERT
 
-			# YANEURAOU_EDITIONのなかにUBUNTUと言う文字列が含まれているならlinkerなどの設定をしてやる。
-			ifneq (,$(findstring UBUNTU,$(YANEURAOU_EDITION)))
-				CPPFLAGS += -I/usr/local/cuda/include
-				LDFLAGS  += -L/usr/local/cuda/lib64
-				LDFLAGS  += -L/usr/local/cuda/lib64/stubs
+			ifneq (,$(findstring TENSOR_RT,$(YANEURAOU_EDITION)))
+				CPPFLAGS      += -DTENSOR_RT
+				NVCC_CPPFLAGS += -DTENSOR_RT
+				LDFLAGS       += -lnvinfer -lnvonnxparser -lcudart
+
+				# YANEURAOU_EDITIONのなかにUBUNTUと言う文字列が含まれているならlinkerなどの設定をしてやる。
+				ifneq (,$(findstring UBUNTU,$(YANEURAOU_EDITION)))
+					CPPFLAGS += -I/usr/local/cuda/include
+					LDFLAGS  += -L/usr/local/cuda/lib64
+					LDFLAGS  += -L/usr/local/cuda/lib64/stubs
+				endif
+
+				CUDA_SOURCES += eval/deep/unpack.cu
+
+			else ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_DEEP_BERT_ORT_CPU)
+				CPPFLAGS += -DONNXRUNTIME -DORT_NO_EXCEPTIONS -DORT_CPU
+				LDFLAGS += -lonnxruntime
+
+			else ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_DEEP_BERT_ORT_DML)
+				CPPFLAGS += -DONNXRUNTIME -DORT_NO_EXCEPTIONS -DORT_DML
+				LDFLAGS += -lonnxruntime
+
+			else ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_DEEP_BERT_ORT_TRT)
+				CPPFLAGS += -DONNXRUNTIME -DORT_NO_EXCEPTIONS -DORT_TRT
+				LDFLAGS += -lonnxruntime
+
+			else ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_DEEP_BERT_COREML)
+				CPPFLAGS += -DCOREML
+				LDFLAGS += -framework Foundation -framework CoreML
+				OBJC_SOURCES += eval/deep/nn_coreml.mm
+
 			endif
 
-			CUDA_SOURCES += eval/deep/unpack.cu
+		# デフォルト (CNN版)
+		else
+			ifneq (,$(findstring TENSOR_RT,$(YANEURAOU_EDITION)))
+				CPPFLAGS      += -DTENSOR_RT
+				NVCC_CPPFLAGS += -DTENSOR_RT
+				LDFLAGS       += -lnvinfer -lnvonnxparser -lcudart
 
-		else ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_DEEP_ORT_CPU)
-			CPPFLAGS += -DONNXRUNTIME -DORT_NO_EXCEPTIONS -DORT_CPU
-			LDFLAGS += -lonnxruntime
+				# YANEURAOU_EDITIONのなかにUBUNTUと言う文字列が含まれているならlinkerなどの設定をしてやる。
+				ifneq (,$(findstring UBUNTU,$(YANEURAOU_EDITION)))
+					CPPFLAGS += -I/usr/local/cuda/include
+					LDFLAGS  += -L/usr/local/cuda/lib64
+					LDFLAGS  += -L/usr/local/cuda/lib64/stubs
+				endif
 
-		else ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_DEEP_ORT_DML)
-			CPPFLAGS += -DONNXRUNTIME -DORT_NO_EXCEPTIONS -DORT_DML
-			LDFLAGS += -lonnxruntime
+				CUDA_SOURCES += eval/deep/unpack.cu
 
-		else ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_DEEP_ORT_TRT)
-			CPPFLAGS += -DONNXRUNTIME -DORT_NO_EXCEPTIONS -DORT_TRT
-			LDFLAGS += -lonnxruntime
+			else ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_DEEP_ORT_CPU)
+				CPPFLAGS += -DONNXRUNTIME -DORT_NO_EXCEPTIONS -DORT_CPU
+				LDFLAGS += -lonnxruntime
 
-		else ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_DEEP_COREML)
-			CPPFLAGS += -DCOREML
-			LDFLAGS += -framework Foundation -framework CoreML
-			OBJC_SOURCES += eval/deep/nn_coreml.mm
+			else ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_DEEP_ORT_DML)
+				CPPFLAGS += -DONNXRUNTIME -DORT_NO_EXCEPTIONS -DORT_DML
+				LDFLAGS += -lonnxruntime
 
-		else ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_DEEP_BERT)
-			CPPFLAGS += -DYANEURAOU_ENGINE_DEEP_BERT -DCOREML
-			LDFLAGS += -framework Foundation -framework CoreML
-			OBJC_SOURCES += eval/deep/nn_coreml.mm
+			else ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_DEEP_ORT_TRT)
+				CPPFLAGS += -DONNXRUNTIME -DORT_NO_EXCEPTIONS -DORT_TRT
+				LDFLAGS += -lonnxruntime
+
+			else ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_DEEP_COREML)
+				CPPFLAGS += -DCOREML
+				LDFLAGS += -framework Foundation -framework CoreML
+				OBJC_SOURCES += eval/deep/nn_coreml.mm
+
+			endif
 
 		endif
 
@@ -465,7 +518,7 @@ ifneq (,$(findstring YANEURAOU_ENGINE_DEEP,$(YANEURAOU_EDITION)))
 		engine/dlshogi-engine/FukauraOuEngine.cpp
 
 	# nn_types.cpp or nn_bert_types.cpp を条件によって追加
-	ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_DEEP_BERT)
+	ifneq (,$(findstring YANEURAOU_ENGINE_DEEP_BERT,$(YANEURAOU_EDITION)))
 		SOURCES += eval/deep/nn_bert_types.cpp
 	else
 		SOURCES += eval/deep/nn_types.cpp
