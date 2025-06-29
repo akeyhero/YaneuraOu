@@ -121,7 +121,17 @@ namespace Eval::dlshogi {
 	void NNOnnxRuntime::forward(const int batch_size, PType* p1, PType* p2, NN_Input1* x1, NN_Input2* x2, NN_Output_Policy* y1, NN_Output_Value* y2)
 	{
 		// input
+#if defined(YANEURAOU_ENGINE_DEEP_BERT)
+		// BERT版: uint8_tのトークンIDを直接入力
+		std::array<int64_t, 2> input_shape1{ batch_size, SQ_NB };
+		std::array<int64_t, 2> input_shape2{ batch_size, BERT_HAND_TOKEN_NUM };
 
+		std::array<Ort::Value, 2> input_values{
+			Ort::Value::CreateTensor<uint8_t>(memory_info, p1, batch_size * SQ_NB, input_shape1.data(), input_shape1.size()),
+			Ort::Value::CreateTensor<uint8_t>(memory_info, p2, batch_size * BERT_HAND_TOKEN_NUM, input_shape2.data(), input_shape2.size())
+		};
+#else
+		// CNN版: floatの特徴量を入力
 		std::array<int64_t, 4> input_shape1 { batch_size, (size_t)COLOR_NB * MAX_FEATURES1_NUM, 9, 9 };
 		std::array<int64_t, 4> input_shape2 { batch_size, MAX_FEATURES2_NUM, 9, 9 };
 
@@ -129,14 +139,22 @@ namespace Eval::dlshogi {
 			Ort::Value::CreateTensor<float>(memory_info, (float*)x1, batch_size * sizeof(NN_Input1), input_shape1.data(), input_shape1.size()),
 			Ort::Value::CreateTensor<float>(memory_info, (float*)x2, batch_size * sizeof(NN_Input2), input_shape2.data(), input_shape2.size())
 		};
+#endif
 
 		// output
-
+#if defined(YANEURAOU_ENGINE_DEEP_BERT)
+		std::array<int64_t, 2> output_shape1{ batch_size, BERT_POLICY_DIM };
+#else
 		std::array<int64_t, 2> output_shape1{ batch_size, MAX_MOVE_LABEL_NUM * (size_t)SQ_NB };
+#endif
 		std::array<int64_t, 2> output_shape2{ batch_size, 1 };
 
 		std::array<Ort::Value, 2> output_values{
+#if defined(YANEURAOU_ENGINE_DEEP_BERT)
+			Ort::Value::CreateTensor<float>(memory_info, (float*)y1, batch_size * BERT_POLICY_DIM, output_shape1.data(), output_shape1.size()),
+#else
 			Ort::Value::CreateTensor<float>(memory_info, (float*)y1, batch_size * MAX_MOVE_LABEL_NUM * (size_t)SQ_NB, output_shape1.data(), output_shape1.size()),
+#endif
 			Ort::Value::CreateTensor<float>(memory_info, (float*)y2, batch_size, output_shape2.data(), output_shape2.size())
 		};
 
