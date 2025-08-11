@@ -47,8 +47,11 @@ namespace dlshogi
 		void nn_forward(const int batch_size, PType* p1, PType* p2, NN_Input1* x1, NN_Input2* x2, NN_Output_Policy* y1, NN_Output_Value* y2)
 		{
 #if !defined(UNPACK_CUDA)
-			// 入力特徴量を展開する。GPU側で展開する場合は不要。
+#if !defined(YANEURAOU_ENGINE_DEEP_BERT)
+			// CNN版のみ：入力特徴量を展開する。GPU側で展開する場合は不要。
+			// BERT版はトークンIDをそのまま使うので展開不要
 			extract_input_features(batch_size, p1, p2, x1, x2);
+#endif
 #endif
 			mutex_gpu.lock();
 			nn->forward(batch_size, p1, p2, x1, x2, y1, y2);
@@ -187,8 +190,15 @@ namespace dlshogi
 			// 推論(NN::forward())のためのメモリを動的に確保する。
 			// GPUを利用する場合は、GPU側のメモリを確保しなければならないので、alloc()は抽象化されている。
 
+#if defined(YANEURAOU_ENGINE_DEEP_BERT)
+			// BERT版: トークンIDをそのまま格納（ビットパック不要）
+			packed_features1 = grp->gpu_memalloc<PType>(policy_value_batch_maxsize * SQ_NB);
+			packed_features2 = grp->gpu_memalloc<PType>(policy_value_batch_maxsize * BERT_HAND_TOKEN_NUM);
+#else
+			// CNN版: ビットパックして格納
 			packed_features1 = grp->gpu_memalloc<PType>((policy_value_batch_maxsize * ((int)COLOR_NB * (int)MAX_FEATURES1_NUM * (int)SQ_NB) + 7) >> 3);
 			packed_features2 = grp->gpu_memalloc<PType>((policy_value_batch_maxsize * ((int)MAX_FEATURES2_NUM) + 7) >> 3);
+#endif
 			features1 = grp->gpu_memalloc<NN_Input1       >(policy_value_batch_maxsize);
 			features2 = grp->gpu_memalloc<NN_Input2       >(policy_value_batch_maxsize);
 			y1        = grp->gpu_memalloc<NN_Output_Policy>(policy_value_batch_maxsize);

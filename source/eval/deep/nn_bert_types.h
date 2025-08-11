@@ -8,7 +8,8 @@
 
 #if defined(TENSOR_RT)
 //#define TRT_NN_FP16
-#define UNPACK_CUDA
+// BERT版ではGPU側でのunpackは不要（トークンIDをそのまま使用）
+//#define UNPACK_CUDA
 #endif
 
 #if defined(TRT_NN_FP16)

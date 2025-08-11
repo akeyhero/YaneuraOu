@@ -83,10 +83,20 @@ namespace Eval::dlshogi
 		// host(GPU側)に同じだけメモリを確保しておいて、CPU側からそこに転送する。
 		set_device(gpu_id);
 
+#if defined(YANEURAOU_ENGINE_DEEP_BERT)
+		// BERT版: トークンIDを格納するためのメモリ確保（PType用）
+		checkCudaErrors(cudaMalloc((void**)&p1_dev, sizeof(PType) * max_batch_size * (int)SQ_NB));
+		checkCudaErrors(cudaMalloc((void**)&p2_dev, sizeof(PType) * max_batch_size * (int)BERT_HAND_TOKEN_NUM));
+		// BERT版: x1_dev, x2_devはp1_dev, p2_devと同じメモリを使用（uint8）
+		x1_dev = (NN_Input1*)p1_dev;
+		x2_dev = (NN_Input2*)p2_dev;
+#else
+		// CNN版: ビットパックされたデータと展開後のデータ用メモリ確保
 		checkCudaErrors(cudaMalloc((void**)&p1_dev, sizeof(PType)            * ((max_batch_size * ((int)COLOR_NB * (int)MAX_FEATURES1_NUM * (int)SQ_NB) + 7) >> 3)));
 		checkCudaErrors(cudaMalloc((void**)&p2_dev, sizeof(PType)            * ((max_batch_size * ((int)MAX_FEATURES2_NUM) + 7) >> 3)));
 		checkCudaErrors(cudaMalloc((void**)&x1_dev, sizeof(NN_Input1)        * max_batch_size));
 		checkCudaErrors(cudaMalloc((void**)&x2_dev, sizeof(NN_Input2)        * max_batch_size));
+#endif
 		checkCudaErrors(cudaMalloc((void**)&y1_dev, sizeof(NN_Output_Policy) * max_batch_size));
 		checkCudaErrors(cudaMalloc((void**)&y2_dev, sizeof(NN_Output_Value)  * max_batch_size));
 
@@ -190,16 +200,32 @@ namespace Eval::dlshogi
 		}
 
 #if defined(TRT_NN_FP16)
+#if defined(YANEURAOU_ENGINE_DEEP_BERT)
+		// BERT版: 入力はuint8、出力はfloat16
+		network->getInput(0)->setType(nvinfer1::DataType::kUINT8);
+		network->getInput(1)->setType(nvinfer1::DataType::kUINT8);
+		network->getOutput(0)->setType(nvinfer1::DataType::kHALF);
+		network->getOutput(1)->setType(nvinfer1::DataType::kHALF);
+#else
+		// CNN版: 全てfloat16
 		network->getInput(0)->setType(nvinfer1::DataType::kHALF);
 		network->getInput(1)->setType(nvinfer1::DataType::kHALF);
 		network->getOutput(0)->setType(nvinfer1::DataType::kHALF);
 		network->getOutput(1)->setType(nvinfer1::DataType::kHALF);
 #endif
+#endif
 
 		ASSERT_LV3(network->getNbInputs() == 2);
 		nvinfer1::Dims inputDims[] = { network->getInput(0)->getDimensions(), network->getInput(1)->getDimensions() };
+#if defined(YANEURAOU_ENGINE_DEEP_BERT)
+		// BERT版: 2次元入力 (batch_size, sequence_length)
+		ASSERT_LV3(inputDims[0].nbDims == 2);
+		ASSERT_LV3(inputDims[1].nbDims == 2);
+#else
+		// CNN版: 4次元入力 (batch_size, channels, height, width)
 		ASSERT_LV3(inputDims[0].nbDims == 4);
 		ASSERT_LV3(inputDims[1].nbDims == 4);
+#endif
 
 		ASSERT_LV3(network->getNbOutputs() == 2);
 
@@ -250,13 +276,24 @@ namespace Eval::dlshogi
 		// Optimization Profiles
 		auto profile = builder->createOptimizationProfile();
 		const auto dims1 = inputDims[0].d;
+		const auto dims2 = inputDims[1].d;
+#if defined(YANEURAOU_ENGINE_DEEP_BERT)
+		// BERT版: 2次元入力 (batch_size, sequence_length)
+		profile->setDimensions("input1", nvinfer1::OptProfileSelector::kMIN, nvinfer1::Dims2(1, dims1[1]));
+		profile->setDimensions("input1", nvinfer1::OptProfileSelector::kOPT, nvinfer1::Dims2(max_batch_size, dims1[1]));
+		profile->setDimensions("input1", nvinfer1::OptProfileSelector::kMAX, nvinfer1::Dims2(max_batch_size, dims1[1]));
+		profile->setDimensions("input2", nvinfer1::OptProfileSelector::kMIN, nvinfer1::Dims2(1, dims2[1]));
+		profile->setDimensions("input2", nvinfer1::OptProfileSelector::kOPT, nvinfer1::Dims2(max_batch_size, dims2[1]));
+		profile->setDimensions("input2", nvinfer1::OptProfileSelector::kMAX, nvinfer1::Dims2(max_batch_size, dims2[1]));
+#else
+		// CNN版: 4次元入力 (batch_size, channels, height, width)
 		profile->setDimensions("input1", nvinfer1::OptProfileSelector::kMIN, nvinfer1::Dims4(1, dims1[1], dims1[2], dims1[3]));
 		profile->setDimensions("input1", nvinfer1::OptProfileSelector::kOPT, nvinfer1::Dims4(max_batch_size, dims1[1], dims1[2], dims1[3]));
 		profile->setDimensions("input1", nvinfer1::OptProfileSelector::kMAX, nvinfer1::Dims4(max_batch_size, dims1[1], dims1[2], dims1[3]));
-		const auto dims2 = inputDims[1].d;
 		profile->setDimensions("input2", nvinfer1::OptProfileSelector::kMIN, nvinfer1::Dims4(1, dims2[1], dims2[2], dims2[3]));
 		profile->setDimensions("input2", nvinfer1::OptProfileSelector::kOPT, nvinfer1::Dims4(max_batch_size, dims2[1], dims2[2], dims2[3]));
 		profile->setDimensions("input2", nvinfer1::OptProfileSelector::kMAX, nvinfer1::Dims4(max_batch_size, dims2[1], dims2[2], dims2[3]));
+#endif
 		config->addOptimizationProfile(profile);
 		config->setMemoryPoolLimit(nvinfer1::MemoryPoolType::kWORKSPACE, 64_MiB);
 
@@ -386,18 +423,35 @@ namespace Eval::dlshogi
 
 	void NNTensorRT::forward(const int batch_size, PType* p1, PType* p2, NN_Input1* x1, NN_Input2* x2, NN_Output_Policy* y1, NN_Output_Value* y2)
 	{
+		// バッチサイズを設定
 		inputDims1.d[0] = batch_size;
 		inputDims2.d[0] = batch_size;
 		infer_context->setInputShape("input1", inputDims1);
 		infer_context->setInputShape("input2", inputDims2);
 #if defined(UNPACK_CUDA)
+#if defined(YANEURAOU_ENGINE_DEEP_BERT)
+		// BERT版: トークンIDをコピーしてからDTypeに変換
+		checkCudaErrors(cudaMemcpyAsync(p1_dev, p1, sizeof(PType) * batch_size * (int)SQ_NB, cudaMemcpyHostToDevice, cudaStreamPerThread));
+		checkCudaErrors(cudaMemcpyAsync(p2_dev, p2, sizeof(PType) * batch_size * (int)BERT_HAND_TOKEN_NUM, cudaMemcpyHostToDevice, cudaStreamPerThread));
+		// TODO: BERT版用のunpack関数が必要（uint8からfloatへの変換）
+		// unpack_features_bert(batch_size, p1_dev, p2_dev, (DType*)x1_dev, (DType*)x2_dev, cudaStreamPerThread);
+#else
+		// CNN版: ビットパックされたデータをコピーしてアンパック
 		checkCudaErrors(cudaMemcpyAsync(p1_dev, p1, sizeof(PType) * ((batch_size * ((int)COLOR_NB * (int)MAX_FEATURES1_NUM * (int)SQ_NB) + 7) >> 3), cudaMemcpyHostToDevice, cudaStreamPerThread));
 		checkCudaErrors(cudaMemcpyAsync(p2_dev, p2, sizeof(PType) * ((batch_size * ((int)MAX_FEATURES2_NUM) + 7) >> 3), cudaMemcpyHostToDevice, cudaStreamPerThread));
 		unpack_features1(batch_size, p1_dev, (DType*)x1_dev, cudaStreamPerThread);
 		unpack_features2(batch_size, p2_dev, (DType*)x2_dev, cudaStreamPerThread);
+#endif
 #else
+#if defined(YANEURAOU_ENGINE_DEEP_BERT)
+		// BERT版: extract_input_featuresで変換済みのデータをコピー
 		checkCudaErrors(cudaMemcpyAsync(x1_dev, x1, sizeof(NN_Input1) * batch_size, cudaMemcpyHostToDevice, cudaStreamPerThread));
 		checkCudaErrors(cudaMemcpyAsync(x2_dev, x2, sizeof(NN_Input2) * batch_size, cudaMemcpyHostToDevice, cudaStreamPerThread));
+#else
+		// CNN版: extract_input_featuresで変換済みのデータをコピー
+		checkCudaErrors(cudaMemcpyAsync(x1_dev, x1, sizeof(NN_Input1) * batch_size, cudaMemcpyHostToDevice, cudaStreamPerThread));
+		checkCudaErrors(cudaMemcpyAsync(x2_dev, x2, sizeof(NN_Input2) * batch_size, cudaMemcpyHostToDevice, cudaStreamPerThread));
+#endif
 #endif
 		infer_context->setTensorAddress("input1", x1_dev);
 		infer_context->setTensorAddress("input2", x2_dev);
