@@ -29,18 +29,13 @@ namespace Eval::dlshogi
 
 	// 各手駒の上限枚数。
 
-	// 歩は多くなるので最大でも8枚とみなす。
-	// 歩が先手の手駒に9枚の状況だとして、残り7枚は相手の手駒 or 盤上にあるはずだし、盤上の歩は入力特徴量として持っているので
-	// 駒割自体は正しく計算できるはず。
-	// MAX_HPAWN_NUMが7だと、手駒を先手が9枚、後手が7枚持っているような状況だと、どちらが数多く持っているのかが判定できないのでまずい。
-
-	constexpr int MAX_HPAWN_NUM   = 8; // 歩の持ち駒の上限
-	constexpr int MAX_HLANCE_NUM  = 4;
-	constexpr int MAX_HKNIGHT_NUM = 4;
-	constexpr int MAX_HSILVER_NUM = 4;
-	constexpr int MAX_HGOLD_NUM   = 4;
-	constexpr int MAX_HBISHOP_NUM = 2;
-	constexpr int MAX_HROOK_NUM   = 2;
+	constexpr int MAX_HPAWN_NUM   = 18; // 歩の持ち駒の上限
+	constexpr int MAX_HLANCE_NUM  =  4;
+	constexpr int MAX_HKNIGHT_NUM =  4;
+	constexpr int MAX_HSILVER_NUM =  4;
+	constexpr int MAX_HGOLD_NUM   =  4;
+	constexpr int MAX_HBISHOP_NUM =  2;
+	constexpr int MAX_HROOK_NUM   =  2;
 
 	// AperyのHandPiece enumの順が、やねうら王のPieceType順と異なるので、
 	// このテーブルを参照するときには順番に注意。
@@ -59,9 +54,6 @@ namespace Eval::dlshogi
 	// 手駒の枚数の合計
 	constexpr u32 MAX_PIECES_IN_HAND_SUM = MAX_HPAWN_NUM + MAX_HLANCE_NUM + MAX_HKNIGHT_NUM + MAX_HSILVER_NUM + MAX_HGOLD_NUM + MAX_HBISHOP_NUM + MAX_HROOK_NUM;
 
-	// 先後含めた手駒の枚数の合計
-	constexpr u32 MAX_FEATURES2_HAND_NUM = (int)COLOR_NB * MAX_PIECES_IN_HAND_SUM;
-
 	// 駒の種類(成り駒含む。先後の区別はない) : 空の駒は含まないので14種類。
 	const int PIECETYPE_NUM = 14;
 
@@ -71,38 +63,59 @@ namespace Eval::dlshogi
 	// 手駒になりうる駒種の数。: Aperyで定義されている定数
 	const int HandPieceNum = 7;
 
-	// 入力特徴量の利きの数の上限。これ以上は、同じ数の利きとみなす。
-	constexpr int MAX_ATTACK_NUM = 3; // 利き数の最大値
+	// === BERT特有の定数定義 ===
 
-	// 盤上の駒に関する入力特徴量のチャンネルの数。(先手分に関して)
-	// 駒の順はAperyのPieceTypeの順。これは、やねうら王と同じ。
-	// ※　歩、香、桂、銀、角、飛、金。
-	constexpr u32 MAX_FEATURES1_NUM = PIECETYPE_NUM/*駒の配置*/ + PIECETYPE_NUM/*駒種ごとの利き*/ + MAX_ATTACK_NUM/*利き数*/;
+	// BERTトークン数
+	constexpr int BERT_BOARD_TOKEN_NUM = SQ_NB;                        // 盤面: 81トークン
+	constexpr int BERT_HAND_TOKEN_NUM = HandPieceNum * (int)COLOR_NB;  // 持ち駒: 14トークン（手番側7種 + 相手側7種）
+	constexpr int BERT_TOTAL_TOKEN_NUM = BERT_BOARD_TOKEN_NUM + BERT_HAND_TOKEN_NUM;  // 合計: 95トークン
 
-	// 手駒に関する入力特徴量のチャンネルの数。
-	// 手駒は、AperyのHandPiece enumの順なので注意が必要。
-	// ※　歩、香、桂、銀、金、角、飛の順。
-	constexpr u32 MAX_FEATURES2_NUM = MAX_FEATURES2_HAND_NUM + 1/*王手*/;
+	// BERTトークンIDの範囲
+	constexpr int BERT_VOCAB_SIZE = 121;  // 0-120のトークンID
 
-	// 移動の定数
-	// 成らない移動。10方向 + 成る移動 10方向。= 20方向
-	enum MOVE_DIRECTION {
-		UP, UP_LEFT, UP_RIGHT, LEFT, RIGHT, DOWN, DOWN_LEFT, DOWN_RIGHT, UP2_LEFT, UP2_RIGHT,
-		UP_PROMOTE, UP_LEFT_PROMOTE, UP_RIGHT_PROMOTE, LEFT_PROMOTE, RIGHT_PROMOTE, DOWN_PROMOTE, DOWN_LEFT_PROMOTE, DOWN_RIGHT_PROMOTE, UP2_LEFT_PROMOTE, UP2_RIGHT_PROMOTE,
-		MOVE_DIRECTION_NUM,
-		MOVE_DIRECTION_NONE = -1 // 移動できないはずの組み合わせ
-	};
+	// 盤面のトークンID定義
+	constexpr int BERT_EMPTY_ID            =  0; // 空きマス
+	constexpr int BERT_BLACK_PIECE_BASE    =  1; // 手番側の駒: 1-8
+	constexpr int BERT_BLACK_PROMOTED_BASE =  9; // 手番側の成駒: 9-14
+	constexpr int BERT_WHITE_PIECE_BASE    = 17; // 相手側の駒: 17-24
+	constexpr int BERT_WHITE_PROMOTED_BASE = 25; // 相手側の成駒: 25-30
 
-	// 成る移動。10方向。
-	const MOVE_DIRECTION MOVE_DIRECTION_PROMOTED[] = {
-		UP_PROMOTE, UP_LEFT_PROMOTE, UP_RIGHT_PROMOTE, LEFT_PROMOTE, RIGHT_PROMOTE, DOWN_PROMOTE, DOWN_LEFT_PROMOTE, DOWN_RIGHT_PROMOTE, UP2_LEFT_PROMOTE, UP2_RIGHT_PROMOTE
-	};
+	// 持ち駒のトークンID開始位置
+	constexpr int BERT_HAND_TOKEN_OFFSET = 31;
+
+	// 持ち駒トークンの各駒種の開始ID
+	// 手番側
+	constexpr int BERT_BLACK_HAND_PAWN_BASE   = 31; // 歩: 31-49 (19種類)
+	constexpr int BERT_BLACK_HAND_LANCE_BASE  = 50; // 香: 50-54 (5種類)
+	constexpr int BERT_BLACK_HAND_KNIGHT_BASE = 55; // 桂: 55-59 (5種類)
+	constexpr int BERT_BLACK_HAND_SILVER_BASE = 60; // 銀: 60-64 (5種類)
+	constexpr int BERT_BLACK_HAND_GOLD_BASE   = 65; // 金: 65-69 (5種類)
+	constexpr int BERT_BLACK_HAND_BISHOP_BASE = 70; // 角: 70-72 (3種類)
+	constexpr int BERT_BLACK_HAND_ROOK_BASE   = 73; // 飛: 73-75 (3種類)
+
+	// 相手側
+	constexpr int BERT_WHITE_HAND_PAWN_BASE   =  76; // 歩: 76-94 (19種類)
+	constexpr int BERT_WHITE_HAND_LANCE_BASE  =  95; // 香: 95-99 (5種類)
+	constexpr int BERT_WHITE_HAND_KNIGHT_BASE = 100; // 桂: 100-104 (5種類)
+	constexpr int BERT_WHITE_HAND_SILVER_BASE = 105; // 銀: 105-109 (5種類)
+	constexpr int BERT_WHITE_HAND_GOLD_BASE   = 110; // 金: 110-114 (5種類)
+	constexpr int BERT_WHITE_HAND_BISHOP_BASE = 115; // 角: 115-117 (3種類)
+	constexpr int BERT_WHITE_HAND_ROOK_BASE   = 118; // 飛: 118-120 (3種類)
+
+	// 各升の数と手駒の駒種の合計
+	// Transformer にトークンとして入力する
+	constexpr u32 MAX_FEATURES1_NUM = BERT_BOARD_TOKEN_NUM/*盤上の駒*/ + BERT_HAND_TOKEN_NUM/*手駒*/;
+
+	// トークンではない入力の特徴量を想定
+	// 現在未使用
+	constexpr u32 MAX_FEATURES2_NUM = 0;
 
 	// 指し手を表すラベルの数
-	// この数(27)×升の数(SQ_NB=81)だけPolicy Networkが値を出力する。
+	// この数(95×2)×升の数(SQ_NB=81)だけPolicy Networkが値を出力する。
+	// ×2 は、成りと不成の2通り。
 	// 駒の順はAperyのPieceTypeの順。これは、やねうら王と同じ。
 	// ※　歩、香、桂、銀、角、飛、金。
-	constexpr int MAX_MOVE_LABEL_NUM = MOVE_DIRECTION_NUM + HandPieceNum;
+	constexpr int MAX_MOVE_LABEL_NUM = (int)MAX_FEATURES1_NUM * 2;
 
 	// 特徴量などに使う型。
 	//
@@ -111,8 +124,6 @@ namespace Eval::dlshogi
 #if defined(TRT_NN_FP16)
 	typedef uint8_t PType;
 	typedef __half DType;
-	extern const DType dtype_zero;
-	extern const DType dtype_one;
 	inline float to_float(const DType x) {
 		return __half2float(x);
 	}
@@ -122,8 +133,6 @@ namespace Eval::dlshogi
 #else
 	typedef uint8_t PType;
 	typedef float DType;
-	constexpr const DType dtype_zero = 0.0f; // DTypeで 0 を表現する型
-	constexpr const DType dtype_one  = 1.0f; // DTypeで 1 を表現する型
 	inline float to_float(const DType x) {
 		return x;
 	}
@@ -134,11 +143,11 @@ namespace Eval::dlshogi
 
 	// NNの入力特徴量その1
 	// ※　dlshogiでは、features1_tという型名。
-	typedef DType NN_Input1[COLOR_NB][MAX_FEATURES1_NUM][SQ_NB];
+	typedef DType NN_Input1[MAX_FEATURES1_NUM];
 
 	// NNの入力特徴量その2
 	// ※　dlshogiでは、features2_tという型名。
-	typedef DType NN_Input2[MAX_FEATURES2_NUM][SQ_NB];
+	typedef DType NN_Input2[MAX_FEATURES2_NUM];
 
 	// NNの出力特徴量その1 (ValueNetwork) : 期待勝率
 	typedef DType NN_Output_Value;

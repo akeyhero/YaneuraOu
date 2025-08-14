@@ -182,8 +182,8 @@ namespace dlshogi
 			// 推論(NN::forward())のためのメモリを動的に確保する。
 			// GPUを利用する場合は、GPU側のメモリを確保しなければならないので、alloc()は抽象化されている。
 
-			packed_features1 = grp->gpu_memalloc<PType>((policy_value_batch_maxsize * ((int)COLOR_NB * (int)MAX_FEATURES1_NUM * (int)SQ_NB) + 7) >> 3);
-			packed_features2 = grp->gpu_memalloc<PType>((policy_value_batch_maxsize * ((int)MAX_FEATURES2_NUM) + 7) >> 3);
+			packed_features1 = grp->gpu_memalloc<PType>(policy_value_batch_maxsize * (int)MAX_FEATURES1_NUM);
+			packed_features2 = grp->gpu_memalloc<PType>(policy_value_batch_maxsize * (int)MAX_FEATURES2_NUM);
 			features1 = grp->gpu_memalloc<NN_Input1       >(policy_value_batch_maxsize);
 			features2 = grp->gpu_memalloc<NN_Input2       >(policy_value_batch_maxsize);
 			y1        = grp->gpu_memalloc<NN_Output_Policy>(policy_value_batch_maxsize);
