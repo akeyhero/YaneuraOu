@@ -7,10 +7,10 @@
 
 #if defined(TRT_NN_FP16)
 typedef unsigned char PType;
-typedef __half DType;
+typedef unsigned char DType;
 #else
 typedef unsigned char PType;
-typedef float DType;
+typedef unsigned char DType;
 #endif
 
 void unpack_features1(const int batch_size, PType* p1, DType* x1, cudaStream_t stream);
