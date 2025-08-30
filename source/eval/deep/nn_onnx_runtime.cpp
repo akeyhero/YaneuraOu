@@ -124,8 +124,8 @@ namespace Eval::dlshogi
 		std::array<int64_t, 4> input_shape2 { batch_size, MAX_FEATURES2_NUM, 9, 9 };
 
 		std::array<Ort::Value, 2> input_values{
-			Ort::Value::CreateTensor<uint8_t>(memory_info, (uint8_t*)x1, batch_size * sizeof(NN_Input1), input_shape1.data(), input_shape1.size()),
-			Ort::Value::CreateTensor<uint8_t>(memory_info, (uint8_t*)x2, batch_size * sizeof(NN_Input2), input_shape2.data(), input_shape2.size())
+			Ort::Value::CreateTensor<int32_t>(memory_info, (int32_t*)x1, batch_size * sizeof(NN_Input1), input_shape1.data(), input_shape1.size()),
+			Ort::Value::CreateTensor<int32_t>(memory_info, (int32_t*)x2, batch_size * sizeof(NN_Input2), input_shape2.data(), input_shape2.size())
 		};
 
 		// output

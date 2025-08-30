@@ -10,7 +10,7 @@ typedef unsigned char PType;
 typedef unsigned char DType;
 #else
 typedef unsigned char PType;
-typedef unsigned char DType;
+typedef int32_t DType;
 #endif
 
 void unpack_features1(const int batch_size, PType* p1, DType* x1, cudaStream_t stream);

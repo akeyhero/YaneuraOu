@@ -1,11 +1,11 @@
 ﻿#include "unpack.cuh"
 
 #if defined(TRT_NN_FP16)
-typedef unsigned char DType;
+typedef int32_t DType;
 typedef short FType;
 constexpr FType ftype_one = 0x3c00;
 #else
-typedef unsigned char DType;
+typedef int32_t DType;
 typedef int FType;
 constexpr FType ftype_one = 0x3f800000;
 #endif

@@ -8,7 +8,7 @@
 
 #if defined(TENSOR_RT)
 //#define TRT_NN_FP16
-#define UNPACK_CUDA
+//#define UNPACK_CUDA
 #endif
 
 #if defined(TRT_NN_FP16)
@@ -108,7 +108,7 @@ namespace Eval::dlshogi
 
 	// トークンではない入力の特徴量を想定
 	// 現在未使用
-	constexpr u32 MAX_FEATURES2_NUM = 0;
+	constexpr u32 MAX_FEATURES2_NUM = 1/*dummy*/;
 
 	// 指し手を表すラベルの数
 	// この数(95×2)×升の数(SQ_NB=81)だけPolicy Networkが値を出力する。
@@ -123,11 +123,11 @@ namespace Eval::dlshogi
 	// ここでは32bit floatとして扱う。
 #if defined(TRT_NN_FP16)
 	typedef uint8_t PType;
-	typedef uint8_t DType;
+	typedef int32_t DType;
 	typedef __half OType;
 #else
 	typedef uint8_t PType;
-	typedef uint8_t DType;
+	typedef int32_t DType;
 	typedef float OType;
 #endif
 

@@ -129,14 +129,14 @@ namespace Eval::dlshogi
 	}
 
 	// 入力特徴量を展開する（BERT版）
-	// BERTではトークンIDをそのまま使用するため、PType[]からNNInput[][]へのアラインメント変換のみ
+	// BERTではトークンIDをそのまま使用するため、PType[]からNNInput[][]への型とアラインメントの変換のみ
 	void extract_input_features(int batch_size, PType* packed_features1, PType* packed_features2, NN_Input1* features1, NN_Input2* features2)
 	{
 		// PType配列をNN_Input1, NN_Input2の配列に変換
 		for (int b = 0; b < batch_size; ++b) {
 			// 盤面81トークン
 			for (int i = 0; i < MAX_FEATURES1_NUM; ++i) {
-				features1[b][i] = packed_features1[b * MAX_FEATURES1_NUM + i];
+				features1[b][i] = (int32_t)packed_features1[b * MAX_FEATURES1_NUM + i];
 			}
 		}
 	}
