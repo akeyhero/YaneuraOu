@@ -53,7 +53,8 @@ namespace {
 // エラーが発生すれば、その旨を出力して終了する。
 void checkCudaErrors(cudaError_t status) {
 	if (status != 0) {
-		sync_cout << "Error! : Cuda failure , Error = " << cudaGetErrorString(status) << sync_endl;
+		sync_cout << "Error! : Cuda failure , Error = " << cudaGetErrorString(status)
+		          << " , Code = " << status << " (" << cudaGetErrorName(status) << ")" << sync_endl;
 		FatalError(cudaGetErrorString(status));
 	}
 }
